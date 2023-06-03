@@ -238,6 +238,7 @@ echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Last commit: $(git log -1)"
 if [[ -f $ansible_path/requirements.yml ]]
 then
     echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Installing requirements from $ansible_path/requirements.yml..."
+    ansible-galaxy install -r $ansible_path/requirements.yml
     ansible-galaxy collection install -r $ansible_path/requirements.yml
     if [ $? -ne 0 ]; then
         echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Unable to install requirements" >&2
