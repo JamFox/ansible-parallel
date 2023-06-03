@@ -312,6 +312,7 @@ echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Executing with arguments:"
 echo "    $ansible_arg_list"
 
 # Loop through each playbook path in the list
+pids=""
 while IFS= read -r playbook_path; do
     # Use temp hosts file only if arg is true and is not a host playbook
     if [[ $skip_unreachable == true && "$playbook_path" != *"host_"* ]]
@@ -356,11 +357,12 @@ while IFS= read -r playbook_path; do
     CMD="ansible-playbook -i $exec_inventory_file $ansible_arg_list"
     echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Executing $playbook_name in the background..."
     $CMD "$playbook_path" > "$log_dir/${playbook_name}_${timestamp}.log" 2>&1 &
+    pids="$pids $!"
 done <<< "$playbook_path_list"
 
 # Wait for all background jobs to finish
 echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Waiting for all playbooks to finish..."
-wait
+wait $pids
 
 # Output results of each playbook
 while IFS= read -r playbook_path; do
