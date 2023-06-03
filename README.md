@@ -1,4 +1,11 @@
-# Ansible parallel execution script
+<p align="center">
+  <a href="https://jamfox.dev">
+    <img alt="JF" src="https://raw.githubusercontent.com/JamFox/JamFox/main/images/ansible-parallel-green.png" width="60" />
+  </a>
+</p>
+<h1 align="center">
+Ansible parallel execution script
+</h1>
 
 Use `ansible-parallel -h` to see available options. Features of bash script:
 
