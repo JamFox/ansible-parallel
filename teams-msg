@@ -1,0 +1,88 @@
+#!/bin/bash
+
+function send_teams_notification() {
+  # Convert the file contents into a Teams-compatible multiline message
+  FILE_CONTENTS=$(cat $FILE)
+  MESSAGE=""
+  while read -r line; do
+    # Remove ANSI color codes
+    line=$(sed -E 's/(\x1B\[[0-9;]+m)//g' <<< "$line")
+    # Add line break
+    MESSAGE+="\n$line"
+  done <<< "$FILE_CONTENTS"
+
+  # Escape double quotes
+  MESSAGE=$( echo ${MESSAGE} | sed 's/"/\\"/g')
+
+  # Construct payload
+  JSON="{\"title\": \"${TITLE}\", \"themeColor\": \"${COLOR}\", \"text\": \"<pre>${MESSAGE}<\/pre>\" }"
+
+  # Post to Microsoft Teams
+  curl -H "Content-Type: application/json" -d "${JSON}" "${WEBHOOK_URL}"
+}
+
+# Help
+if [[ "$1" == "-h" ]]; then
+  echo 'Usage: $0 "<webhook_url>" "<title>" "<color (optional)>" "<message_file>" --only-error (optional)'
+  exit 0
+fi
+
+# Webhook or Token.
+WEBHOOK_URL=$1
+if [[ "${WEBHOOK_URL}" == "" ]]
+then
+  echo "No webhook_url specified."
+  exit 1
+fi
+shift
+
+# Title
+TITLE=$1
+if [[ "${TITLE}" == "" ]]
+then
+  echo "No title specified."
+  exit 1
+fi
+shift
+
+# Color
+COLOR=$1
+if [[ "${COLOR}" == "" ]]
+then
+  COLOR="000000"
+fi
+shift
+
+# File
+FILE=$1
+if [[ "${FILE}" == "" ]]
+then
+  echo "No file for message specified."
+  exit 1
+fi
+shift
+
+# Notification only on error flag
+ONLY_ERROR=$1
+if [[ "${ONLY_ERROR}" == "--only-error" ]]
+then
+  ONLY_ERROR=true
+else
+  ONLY_ERROR=false
+fi
+
+# Check if errors are found
+if grep -iEq 'changed|fatal|failed|error' $FILE; then
+  ERRORS_FOUND=true
+else
+  ERRORS_FOUND=false
+fi
+
+# Send notification if conditions are met
+if [[ "$ONLY_ERROR" == "true" && "$ERRORS_FOUND" == "true" ]]; then
+  send_teams_notification
+elif [[ "$ONLY_ERROR" == "false" ]]; then
+  send_teams_notification
+else
+  echo "Conditions not met, no notification sent!"
+fi
