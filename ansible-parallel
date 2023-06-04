@@ -288,7 +288,13 @@ then
     # Run all playbooks
     for playbook in $(ls $ansible_path/playbooks)
     do
-        add_playbook $playbook
+        for prefix in $(echo $PREFIXES | tr ',' ' ')
+        do
+            if [[ $playbook == *"$prefix"* ]]; then
+                add_playbook $playbook
+                break
+            fi
+        done
     done
 fi
 
