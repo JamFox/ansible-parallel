@@ -30,6 +30,12 @@ ansible-parallel -p cluster_base --tags nsswitch --check --diff -v
 ansible-parallel -m cluster --tags soft
 ```
 
+To use post-run command, set it in the configuration file. If you wish to use the output log, escape the `output_path` variable, this will be expanded to the log path on running:
+
+```bash
+POST_RUN_COMMAND="telegram-msg \$output_path --only-error"
+```
+
 ## Configuration file
 
 `ansible-parallel` supports configuration file options. Example in `ansible-parallel.cfg`, explained in more detail:
