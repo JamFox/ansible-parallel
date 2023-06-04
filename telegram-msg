@@ -1,0 +1,62 @@
+#!/bin/bash
+
+function send_telegram_notification() {
+  # Convert the file contents into a Teams-compatible multiline message
+  FILE_CONTENTS=$(cat $FILE)
+  MESSAGE=""
+  while read -r line; do
+    # Remove ANSI color codes
+    line=$(sed -E 's/(\x1B\[[0-9;]+m)//g' <<< "$line")
+    # Add line break
+    MESSAGE+="\n$line"
+  done <<< "$FILE_CONTENTS"
+
+  printf "$MESSAGE" | telegram-send --stdin --pre
+}
+
+# Check if telegram-send is installed
+telegram-send -h >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+    echo "telegram-send not installed. Install it with 'pip install telegram-send'"
+    exit 1
+fi
+
+# Help
+if [[ "$1" == "-h" ]]; then
+  echo 'Usage: $0 "<message_file>" --only-error (optional)'
+  exit 0
+fi
+
+# File
+FILE=$1
+if [[ "${FILE}" == "" ]]
+then
+  echo "No file for message specified."
+  exit 1
+fi
+shift
+
+# Notification only on error flag
+ONLY_ERROR=$1
+if [[ "${ONLY_ERROR}" == "--only-error" ]]
+then
+  ONLY_ERROR=true
+else
+  ONLY_ERROR=false
+fi
+
+# Check if errors are found
+if grep -iEq 'changed|fatal|failed|error' $FILE; then
+  ERRORS_FOUND=true
+else
+  ERRORS_FOUND=false
+fi
+
+# Send notification if conditions are met
+if [[ "$ONLY_ERROR" == "true" && "$ERRORS_FOUND" == "true" ]]; then
+  send_telegram_notification
+elif [[ "$ONLY_ERROR" == "false" ]]; then
+  send_telegram_notification
+else
+  echo "Conditions not met, no notification sent!"
+fi
