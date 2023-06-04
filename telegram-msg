@@ -46,7 +46,7 @@ else
 fi
 
 # Check if errors are found
-if grep -iEq 'changed:|fatal:|failed:|error:' $FILE; then
+if grep -Eq 'changed:|fatal:|failed:|error:|FATAL|WARNING' $FILE; then
   ERRORS_FOUND=true
 else
   ERRORS_FOUND=false
