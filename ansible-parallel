@@ -131,13 +131,16 @@ do
     shift
 done
 
+# Trap exit signal to run post-run command and cleanup
+trap exit_with_post EXIT
+
 # Check if config file exists
 if [[ -e $cfg_path ]]
 then
     . $cfg_path
 else
     echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Config file $cfg_path not found!" >&2
-    exit_with_post 1
+    exit 1
 fi
 
 # Set default branch if not specified
@@ -148,7 +151,7 @@ pseudopid="`pgrep -f $0 -l`"
 actualpid="$(echo "$pseudopid" | grep -v 'sudo' | awk -F ' ' '{print $1}')"
 if [[ `echo $actualpid` != "$$" ]]; then
     echo -e "[ ${COLOR_YELLOW_BOLD}WARNING${COLOR_RESET} ] $0 is already running or open in another process!" >&2
-    exit_with_post 2
+    exit 2
 fi
 
 # Determine execution directory
@@ -164,7 +167,7 @@ else
     git clone $ANSIBLE_REPO_URL $ansible_path
     if [ $? -ne 0 ]; then
         echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Unable to clone $ANSIBLE_REPO_URL to $ansible_path" >&2
-        exit_with_post 1
+        exit 1
     fi
 fi
 
@@ -204,7 +207,7 @@ fi
 touch $output_path
 if [ $? -ne 0 ]; then
     echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Unable to create output file $output_path" >&2
-    exit_with_post 1
+    exit 1
 fi
 exec 3>&1 1> >(tee -a ${output_path}) 2>&1
 
@@ -228,7 +231,7 @@ echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Checking out branch $branch a
 git checkout $branch
 if [ $? -ne 0 ]; then
     echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Unable to checkout branch $branch at $ANSIBLE_REPO_URL" >&2
-    exit_with_post 1
+    exit 1
 fi
 
 # Display last commit
@@ -241,7 +244,7 @@ then
     ansible-galaxy install -r $ansible_path/requirements.yml
     if [ $? -ne 0 ]; then
         echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Unable to install requirements" >&2
-        exit_with_post 1
+        exit 1
     fi
 fi
 
@@ -274,7 +277,7 @@ fi
 if [[ -z $playbooks_to_run && -z $playbooks_to_match && $run_all_playbooks == false ]]
 then
     echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] No playbooks specified! Use -h flag to see usage help." >&2
-    exit_with_post 1
+    exit 1
 elif [[ -n $playbooks_to_run && $run_all_playbooks == false ]]
 then
     # If playbooks specified, run only those
@@ -305,7 +308,7 @@ playbook_path_list=$(echo "$playbook_path_list" | awk '!x[$0]++')
 if [[ -z $playbook_path_list ]]
 then
     echo -e "[ ${COLOR_YELLOW_BOLD}WARNING${COLOR_RESET} ] No playbooks found, nothing done"
-    exit_with_post 2
+    exit 2
 fi
 
 # Display playbooks to execute
@@ -389,5 +392,3 @@ while IFS= read -r playbook_path; do
         echo -e "[ ${COLOR_YELLOW_BOLD}WARNING${COLOR_RESET} ] $log_file does not exist"
     fi
 done <<< "$playbook_path_list"
-
-exit_with_post 0
