@@ -166,7 +166,7 @@ else
     # Clone ansible repo if not found
     git clone $ANSIBLE_REPO_URL $ansible_path
     if [ $? -ne 0 ]; then
-        echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Unable to clone $ANSIBLE_REPO_URL to $ansible_path" >&2
+        echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Unable to clone ${ANSIBLE_REPO_URL#*@} to $ansible_path" >&2
         exit 1
     fi
 fi
@@ -220,17 +220,17 @@ then
     cd $ansible_path
     git pull
     if [ $? -ne 0 ]; then
-        echo -e "[ ${COLOR_YELLOW_BOLD}WARNING${COLOR_RESET} ] Unable to pull latest branch $branch at $ANSIBLE_REPO_URL"
+        echo -e "[ ${COLOR_YELLOW_BOLD}WARNING${COLOR_RESET} ] Unable to pull latest branch $branch at ${ANSIBLE_REPO_URL#*@}"
         echo -e "[ ${COLOR_YELLOW_BOLD}WARNING${COLOR_RESET} ] Continuing without pulling latest..."
     fi
 fi
 
 # Checkout default or specified branch
 cd $ansible_path
-echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Checking out branch $branch at $ANSIBLE_REPO_URL"
+echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Checking out branch $branch at ${ANSIBLE_REPO_URL#*@}"
 git checkout $branch
 if [ $? -ne 0 ]; then
-    echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Unable to checkout branch $branch at $ANSIBLE_REPO_URL" >&2
+    echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Unable to checkout branch $branch at ${ANSIBLE_REPO_URL#*@}" >&2
     exit 1
 fi
 
