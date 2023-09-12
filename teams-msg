@@ -11,14 +11,27 @@ function send_teams_notification() {
     MESSAGE+="\n$line"
   done <<< "$FILE_CONTENTS"
 
-  # Escape double quotes
+  # Fix escaping
   MESSAGE=$( echo ${MESSAGE} | sed 's/"/\\"/g')
+  MESSAGE=$( echo ${MESSAGE} | sed 's/\\\\"/\\\"/g')
+  MESSAGE=$( echo ${MESSAGE} | sed 's/\r//g')
 
-  # Construct payload
-  JSON="{\"title\": \"${TITLE}\", \"themeColor\": \"${COLOR}\", \"text\": \"<pre>${MESSAGE}<\/pre>\" }"
+  # Define the maximum message length per chunk
+  MAX_CHUNK_LENGTH=20000
 
-  # Post to Microsoft Teams
-  curl -H "Content-Type: application/json" -d "${JSON}" "${WEBHOOK_URL}"
+  # Split the message into chunks
+  CHUNK_NUMBER=1
+  while [ -n "$MESSAGE" ]; do
+    CHUNK=$(echo "${MESSAGE}" | cut -c 1-"$MAX_CHUNK_LENGTH")
+    MESSAGE=$(echo "${MESSAGE}" | cut -c "$MAX_CHUNK_LENGTH"-)
+
+    # Construct payload for the current chunk
+    JSON="{\"title\": \"${TITLE} - ${CHUNK_NUMBER}\", \"themeColor\": \"${COLOR}\", \"text\": \"<pre>${CHUNK}<\/pre>\" }"
+
+    # Post the current chunk to Microsoft Teams
+    curl -H "Content-Type: application/json" -d "${JSON}" "${WEBHOOK_URL}"
+    CHUNK_NUMBER=$((CHUNK_NUMBER + 1))
+  done
 }
 
 # Help
