@@ -346,8 +346,8 @@ while IFS= read -r playbook_path; do
             if [ $? -eq 0 ]; then
                 # Add reachable hosts to the temporary inventory file
                 echo "$hostname ansible_host=$ip" >> $reachable_hosts_file
-            else
-                echo "    $hostname at $ip is unreachable, this host will be skipped"
+            #else
+            #    echo "    $hostname at $ip is unreachable, this host will be skipped"
             fi
         fi
         done <<< "$hosts"
