@@ -385,7 +385,7 @@ while IFS= read -r playbook_path; do
         log_file_name=$(basename "$log_file")
         # Output task headers, errors and changes
         echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] RESULTS FOR ${playbook_name}"
-        echo "$(grep -iE 'changed|fatal|failed|error|warning|(\*\*\*{3,})' $log_file)"
+        echo "$(grep -iE 'changed|fatal|failed|error|warning|(\*\*\*{3,})' $log_file | grep -ivE 'include_tasks|included')"
         # Echo new line for readability
         echo
     else
