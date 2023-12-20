@@ -20,6 +20,7 @@ playbooks_to_match=
 playbook_path_list=
 run_all_playbooks=false
 timestamp=$(date +"%Y-%m-%d_%Hh%Mm%Ss")
+galaxy_force_upgrade_req_flag="--force"
 ## Fixed vars uppercase, defined in config file
 PREFIXES="group_,host_"
 RELATIVE_LOG_PATH=logs
@@ -51,6 +52,7 @@ Help()
    echo " -e    Path to ansible project to run, default is $exec_path or $ANSIBLE_MAIN_DIR"
    echo " -o    Path to logs output directory"
    echo " -s    Skip unreachable hosts (takes 1sec longer for each host)"
+   echo " -g    Don't force upgrade of ansible-galaxy requirements"
    echo " *     Any extra args are considered 'ansible-playbook' args"
    echo
 }
@@ -123,6 +125,9 @@ do
     ;;
     (-s)
         skip_unreachable=true
+    ;;
+    (-g)
+        galaxy_force_upgrade_req_flag=""
     ;;
     (*)
         ansible_arg_list="$ansible_arg_list $1"
@@ -243,7 +248,7 @@ echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Last commit: $(git log -1)"
 if [[ -f $ansible_path/requirements.yml ]]
 then
     echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Installing requirements from $ansible_path/requirements.yml..."
-    ansible-galaxy install -r $ansible_path/requirements.yml --force
+    ansible-galaxy install -r $ansible_path/requirements.yml $galaxy_force_upgrade_req_flag
     if [ $? -ne 0 ]; then
         echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Unable to install requirements" >&2
         exit 1
