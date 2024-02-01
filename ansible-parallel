@@ -235,6 +235,7 @@ fi
 # Checkout default or specified branch
 cd $ansible_path
 echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Checking out branch $branch at ${ANSIBLE_REPO_URL#*@}"
+git fetch --all
 git checkout $branch
 if [ $? -ne 0 ]; then
     echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Unable to checkout branch $branch at ${ANSIBLE_REPO_URL#*@}" >&2
