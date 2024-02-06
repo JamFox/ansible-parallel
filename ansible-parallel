@@ -49,7 +49,7 @@ Help()
    echo " -p    Comma separated list of playbooks to run, omit host or group prefix"
    echo " -m    Run all playbooks that match the supplied pattern"
    echo " -a    Run all playbooks"
-   echo " -e    Path to ansible project to run, default is $exec_path or $ANSIBLE_MAIN_DIR"
+   echo " -w    Path to ansible project to run, default is $exec_path or $ANSIBLE_MAIN_DIR"
    echo " -o    Path to logs output directory"
    echo " -s    Skip unreachable hosts (takes 1sec longer for each host)"
    echo " -g    Don't force upgrade of ansible-galaxy requirements"
@@ -115,7 +115,7 @@ do
     (-a)
         run_all_playbooks=true
     ;;
-    (-e)
+    (-w)
         shift
         exec_path=$1
     ;;
