@@ -1,9 +1,7 @@
 #!/bin/bash
-# Color codes
-COLOR_RED_BOLD='\e[31;1m'
-COLOR_YELLOW_BOLD='\e[33;1m'
-COLOR_GREEN_BOLD='\e[32;1m'
-COLOR_RESET='\e[00m'
+# Script Name: ansible-parallel
+# Description: Script to automate running multiple ansible playbooks.
+# Run with -h flag to see usage.
 
 # Global variables
 ## Changing vars lowercase
@@ -57,28 +55,43 @@ Help()
    echo
 }
 
+log() {
+  local log_level="$1"
+  shift
+  local message="$@"
+
+  if [ "$log_level" != "info" ]; then
+    echo "$message" >&2  # Redirect to stderr
+  else
+    echo "$message"
+  fi
+  logger -p "user.$log_level" -t ansible-parallel "$message"
+}
+
 # Exit function with post-run command before exiting
 function exit_with_post() {
-    echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Running post exit commands and cleanup."
+    log info "Running post exit commands and cleanup."
 
     # Cleanup
     if [ -d "$tmp_dir" ]; then
-        echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Cleaning temp directory $tmp_dir"
+        log info "Cleaning temp directory $tmp_dir"
         rm -rf $tmp_dir
     fi
     if [ -d "$log_dir" ]; then
-        echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Cleaning logs older than $LOG_RETENTION_IN_DAYS days."
+        log info "Cleaning logs older than $LOG_RETENTION_IN_DAYS days."
         find $log_dir -type f -mtime +$LOG_RETENTION_IN_DAYS -delete
     fi
 
     # Run post command
     if [[ -z $POST_RUN_COMMAND ]]
     then 
-        echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] No post run command specified."
+        log info "No post run command specified."
     else
-        echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Running post run command."
+        log info "Running post run command."
         eval "$POST_RUN_COMMAND"
     fi
+
+    log info "Run finished by $(whoami), check logs at $(hostname):$ansible_path/$RELATIVE_LOG_PATH"
 
     # Exit with specified exit code
     local exit_code=$1
@@ -144,7 +157,7 @@ if [[ -e $cfg_path ]]
 then
     . $cfg_path
 else
-    echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Config file $cfg_path not found!" >&2
+    log error "Config file $cfg_path not found!" >&2
     exit 1
 fi
 
@@ -155,7 +168,7 @@ branch=${branch:=$DEFAULT_BRANCH}
 pseudopid="`pgrep -f $0 -l`"
 actualpid="$(echo "$pseudopid" | grep -v 'sudo' | awk -F ' ' '{print $1}')"
 if [[ `echo $actualpid` != "$$" ]]; then
-    echo -e "[ ${COLOR_YELLOW_BOLD}WARNING${COLOR_RESET} ] $0 is already running or open in another process!" >&2
+    log warning "$0 is already running or open in another process!" >&2
     exit 2
 fi
 
@@ -171,7 +184,7 @@ else
     # Clone ansible repo if not found
     git clone $ANSIBLE_REPO_URL $ansible_path
     if [ $? -ne 0 ]; then
-        echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Unable to clone ${ANSIBLE_REPO_URL#*@} to $ansible_path" >&2
+        log error "Unable to clone ${ANSIBLE_REPO_URL#*@} to $ansible_path" >&2
         exit 1
     fi
 fi
@@ -200,24 +213,23 @@ fi
 # Create log directory if it does not exist
 if [ ! -d "$log_dir" ]; then
     mkdir -p "$log_dir"
-    echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Created log directory $log_dir"
+    log info "Created log directory $log_dir"
 fi
 # Create tmp directory if it does not exist
 if [ ! -d "$tmp_dir" ]; then
     mkdir -p "$tmp_dir"
-    echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Created tmp directory $tmp_dir"
+    log info "Created tmp directory $tmp_dir"
 fi
 
 # Create output file and redirect stdout and stderr to it as well as terminal
 touch $output_path
 if [ $? -ne 0 ]; then
-    echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Unable to create output file $output_path" >&2
+    log error "Unable to create output file $output_path" >&2
     exit 1
 fi
 exec 3>&1 1> >(tee -a ${output_path}) 2>&1
 
-echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Executing from:"
-echo -e "    $(whoami)@$(hostname):$ansible_path"
+log info "Executing from: $(whoami)@$(hostname):$ansible_path"
 
 # Pull latest if argument set
 if [[ $refresh == true ]]
@@ -227,31 +239,31 @@ then
     git reset --hard HEAD
     git pull
     if [ $? -ne 0 ]; then
-        echo -e "[ ${COLOR_YELLOW_BOLD}WARNING${COLOR_RESET} ] Unable to pull latest branch $branch at ${ANSIBLE_REPO_URL#*@}"
-        echo -e "[ ${COLOR_YELLOW_BOLD}WARNING${COLOR_RESET} ] Continuing without pulling latest..."
+        log warning "Unable to pull latest branch $branch at ${ANSIBLE_REPO_URL#*@}"
+        log warning "Continuing without pulling latest..."
     fi
 fi
 
 # Checkout default or specified branch
 cd $ansible_path
-echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Checking out branch $branch at ${ANSIBLE_REPO_URL#*@}"
+log info "Checking out branch $branch at ${ANSIBLE_REPO_URL#*@}"
 git fetch --all
 git checkout $branch
 if [ $? -ne 0 ]; then
-    echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Unable to checkout branch $branch at ${ANSIBLE_REPO_URL#*@}" >&2
+    log error "Unable to checkout branch $branch at ${ANSIBLE_REPO_URL#*@}" >&2
     exit 1
 fi
 
 # Display last commit
-echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Last commit: $(git log -1)"
+log info "Last commit: $(git log -1 --format='%h %ci %s')"
 
 # Install requirements if requirements file exists
 if [[ -f $ansible_path/requirements.yml ]]
 then
-    echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Installing requirements from $ansible_path/requirements.yml..."
+    log info "Installing requirements from $ansible_path/requirements.yml..."
     ansible-galaxy install -r $ansible_path/requirements.yml $galaxy_force_upgrade_req_flag
     if [ $? -ne 0 ]; then
-        echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] Unable to install requirements" >&2
+        log error "Unable to install requirements" >&2
         exit 1
     fi
 fi
@@ -284,7 +296,7 @@ fi
 # Add playbooks that are specified or else all playbooks
 if [[ -z $playbooks_to_run && -z $playbooks_to_match && $run_all_playbooks == false ]]
 then
-    echo -e "[ ${COLOR_RED_BOLD}FATAL${COLOR_RESET} ] No playbooks specified! Use -h flag to see usage help." >&2
+    log error "No playbooks specified! Use -h flag to see usage help." >&2
     exit 1
 elif [[ -n $playbooks_to_run && $run_all_playbooks == false ]]
 then
@@ -315,18 +327,18 @@ playbook_path_list=$(echo "$playbook_path_list" | awk '!x[$0]++')
 # If no playbooks found
 if [[ -z $playbook_path_list ]]
 then
-    echo -e "[ ${COLOR_YELLOW_BOLD}WARNING${COLOR_RESET} ] No playbooks found, nothing done"
+    log warning "No playbooks found, nothing done"
     exit 2
 fi
 
 # Display playbooks to execute
-echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Playbooks to execute:"
+log info "Playbooks to execute:"
 for playbook_path in $playbook_path_list
 do
-    echo "    $playbook_path"
+    log info "    $playbook_path"
 done
-echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Executing with arguments:"
-echo "    $ansible_arg_list"
+log info "Executing with arguments:"
+log info "    $ansible_arg_list"
 
 # Loop through each playbook path in the list
 pids=""
@@ -342,7 +354,7 @@ while IFS= read -r playbook_path; do
         reachable_hosts_file="$tmp_dir/${host_group}.tmp"
         echo "[$host_group]" > $reachable_hosts_file
         # Check reachability of hosts
-        echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Generating temp reachable hosts inventory ${reachable_hosts_file} file..."
+        log info "Generating temp reachable hosts inventory ${reachable_hosts_file} file..."
         while read line; do
         if [[ $line == *ansible_host=* ]]; then
             # Extract the hostname
@@ -354,8 +366,6 @@ while IFS= read -r playbook_path; do
             if [ $? -eq 0 ]; then
                 # Add reachable hosts to the temporary inventory file
                 echo "$hostname ansible_host=$ip" >> $reachable_hosts_file
-            #else
-            #    echo "    $hostname at $ip is unreachable, this host will be skipped"
             fi
         fi
         done <<< "$hosts"
@@ -372,13 +382,13 @@ while IFS= read -r playbook_path; do
     # Run the command in parallel and redirect the output to a log file
     export ANSIBLE_CONFIG="$ansible_path/ansible.cfg"
     CMD="ansible-playbook -i $exec_inventory_file $ansible_arg_list"
-    echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Executing $playbook_name in the background..."
+    log info "Executing $playbook_name in the background..."
     $CMD "$playbook_path" > "$log_dir/${playbook_name}_${timestamp}.log" 2>&1 &
     pids="$pids $!"
 done <<< "$playbook_path_list"
 
 # Wait for all background jobs to finish
-echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] Waiting for all playbooks to finish..."
+log info "Waiting for all playbooks to finish..."
 wait $pids
 
 # Output results of each playbook
@@ -392,11 +402,21 @@ while IFS= read -r playbook_path; do
         # Get the name of the log file
         log_file_name=$(basename "$log_file")
         # Output task headers, errors and changes
-        echo -e "[ ${COLOR_GREEN_BOLD}INFO${COLOR_RESET} ] RESULTS FOR ${playbook_name}"
-        echo "$(grep -iE 'changed|fatal|failed|error|warning|(\*\*\*{3,})' $log_file | grep -ivE 'include_tasks|included')"
+        log info "RESULTS FOR ${playbook_name}"
+        echo -e "$(grep -iE 'changed|fatal|failed|error|warning|(\*\*\*{3,})' "$log_file" | grep -ivE 'include_tasks|included')" | while IFS= read -r line; do
+            if echo "$line" | grep -qE 'changed'; then
+                log notice "$line"
+            elif echo "$line" | grep -qE 'fatal|failed|error'; then
+                log error "$line"
+            elif echo "$line" | grep -qE 'warning'; then
+                log warning "$line"
+            else
+                log info "$line"
+            fi
+        done
         # Echo new line for readability
         echo
     else
-        echo -e "[ ${COLOR_YELLOW_BOLD}WARNING${COLOR_RESET} ] $log_file does not exist"
+        log warning "$log_file does not exist"
     fi
 done <<< "$playbook_path_list"
