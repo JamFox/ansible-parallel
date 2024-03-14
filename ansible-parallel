@@ -30,6 +30,7 @@ ANSIBLE_MAIN_DIR=/opt/ansible
 DEFAULT_BRANCH=master
 POST_RUN_COMMAND=
 OUTPUT_FILE="ansible-parallel_$timestamp.log"
+WAIT_FOR_CPU=false
 
 # Usage display function
 Help()
@@ -385,6 +386,22 @@ while IFS= read -r playbook_path; do
     log info "Executing $playbook_name in the background..."
     $CMD "$playbook_path" > "$log_dir/${playbook_name}_${timestamp}.log" 2>&1 &
     pids="$pids $!"
+    
+    # Wait for CPU load to go down before launcing more forks
+    if [ "$WAIT_FOR_CPU" = true ]; then
+        while true; do
+            cpu_util=$(awk -v a="$(awk '/cpu /{print $2+$4,$2+$4+$5}' /proc/stat; sleep 1)" '/cpu /{split(a,b," "); print 100*($2+$4-b[1])/($2+$4+$5-b[2])}' /proc/stat)
+            cpu_util_int=$(printf "%.0f" "$cpu_util")  # Convert floating-point to integer
+            
+            if [ "$cpu_util_int" -lt 75 ]; then
+                #log info "CPU utilization below 75%, continuing!"
+                break
+            else
+                #log warning "CPU utilization too high at $cpu_util%. Waiting before launching more forks..."
+                sleep 10
+            fi
+        done
+    fi
 done <<< "$playbook_path_list"
 
 # Wait for all background jobs to finish
